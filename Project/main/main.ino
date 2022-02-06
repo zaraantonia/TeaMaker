@@ -5,7 +5,7 @@
 //keypad
 const byte ROWS = 1; 
 const byte COLS = 4; 
-char keys[ROWS][COLS] = {{'1','6','7','8'}}; 
+char keys[ROWS][COLS] = {{'1','2','7','8'}}; 
 byte rowPins[ROWS] = {A1}; //row pinouts
 byte colPins[COLS] = {A4, A5, A2, A3}; //column pinouts for 2, 1, 4, 3
 
@@ -54,6 +54,7 @@ SevSeg sevseg;
 Servo servo;
 
 //states
+#define INIT -1
 #define NOT_STARTED 0
 #define SERVO_GOING_DOWN 1
 #define INFUSING 2
@@ -61,12 +62,13 @@ Servo servo;
 #define DONE 4
 #define INVALID 5
  
-int state = NOT_STARTED;
+int state = INIT;
 
 //tea making process
 int minutes = 0;
 int minutesLeft = 0;
 int timePassed = 0;
+int minutesLeftBefore = 0;
 
 int halvesPassed = 0;
 //int secondsPassed = 0;
@@ -84,15 +86,32 @@ void setup() {
   sevseg.setBrightness(100);
 
   //bluetooth
-  Serial.begin(9600);
-  
+  Serial.begin(9600);  
 }
 
 void loop() {
   //Serial.println(state);
+  if(state == INIT)
+  {
+    Serial.println("Hi! You can start infusing! :)");
+    Serial.println("Press a key or write a digit to begin.");
+    state = NOT_STARTED;
+  }
+  else
 
   if(state == NOT_STARTED)// or state == DONE)
   {
+    int inputByte = Serial.read();
+    if(inputByte > '0' and inputByte <= '9')
+    {
+      minutes = inputByte - '0';
+      minutesLeft = minutes;
+      state = SERVO_GOING_DOWN;
+      startMillis = millis();
+      Serial.println("Infusing started! Just wait now.");
+      minutesLeftBefore = minutes;
+      Serial.println("Your tea will be ready in " + String(minutes) + " minutes.");
+    }
     char key = keypad.getKey();
     if(key)
     {
@@ -100,6 +119,9 @@ void loop() {
       minutesLeft = minutes;
       state = SERVO_GOING_DOWN;
       startMillis = millis();
+      Serial.println("Infusing started! Just wait now.");
+      minutesLeftBefore = minutes;
+      Serial.println("Your tea will be ready in " + String(minutes) + " minutes.");
     }
   }
   else
@@ -109,7 +131,7 @@ void loop() {
       //startMillis = millis();
       if (millis() - startMillis >= moveTime) {
         servo.write(position);
-        if (position <= 180) {
+        if (position <= 45) {
           position = position + step;
       }
       else
@@ -136,6 +158,12 @@ void loop() {
       if (mins < minutes)
       {     
         int minutesLeftNow = minutes - mins;
+
+        if(minutesLeftNow != minutesLeftBefore)
+        {
+          Serial.println("Your tea will be ready in " + String(minutesLeftNow) + " minutes.");
+          minutesLeftBefore = minutesLeftNow;
+        }
         
         int secondsPassed = timePassed / 1000 + (halvesPassed % 2) * 30;
         
@@ -154,7 +182,7 @@ void loop() {
       {
         state = SERVO_GOING_UP;
         startMillis = millis();
-      
+        Serial.println("Your tea is done! Enjoy or have a new cup!");
       }
     }
     timePassed = millis() - startMillis;
@@ -192,6 +220,21 @@ void loop() {
         previousMillis = currentMillis;
       }
 
+      int inputByte = Serial.read();
+      if(inputByte > '0' and inputByte <= '9')
+      {
+        minutes = inputByte - '0';
+        minutesLeft = minutes;
+        state = SERVO_GOING_DOWN;
+        startMillis = millis();
+        minutesLeft = 0;
+        timePassed = 0;
+        halvesPassed = 0;
+        Serial.println("Infusing started! Just wait now.");
+        minutesLeftBefore = minutes;
+        Serial.println("Your tea will be ready in " + String(minutes) + " minutes.");
+      }
+
       char key = keypad.getKey();
       if(key)
       {
@@ -202,6 +245,9 @@ void loop() {
         minutesLeft = 0;
         timePassed = 0;
         halvesPassed = 0;
+        Serial.println("Infusing started! Just wait now.");
+        minutesLeftBefore = minutes;
+        Serial.println("Your tea will be ready in " + String(minutes) + " minutes.");
       }
   }
 }
